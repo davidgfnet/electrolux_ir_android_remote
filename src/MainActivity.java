@@ -3,6 +3,7 @@ package net.davidgf.elremote;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.hardware.ConsumerIrManager;
 import android.os.Bundle;
@@ -18,6 +19,7 @@ public class MainActivity extends Activity {
 
     private final IrCodec.State st = new IrCodec.State();
     private ConsumerIrManager ir;
+    private SharedPreferences prefs;
     private TextView display;
     private Button powerBtn, swingBtn, timerBtn;
 
@@ -25,8 +27,8 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         ir = (ConsumerIrManager) getSystemService(Context.CONSUMER_IR_SERVICE);
-
-        st.power = false; st.mode = 1; st.speed = 0; st.temp = 24; st.swing = false;
+        prefs = getPreferences(Context.MODE_PRIVATE);
+        load();
 
         int pad = dp(16);
         LinearLayout root = new LinearLayout(this);
@@ -63,6 +65,8 @@ public class MainActivity extends Activity {
         });
         root.addView(timerBtn);
 
+        root.addView(btn("BLAST (resend)", v -> send(IrCodec.ACT_SETTLED)));
+
         setContentView(root);
         refresh();
     }
@@ -86,6 +90,27 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "No IR emitter on this device", Toast.LENGTH_SHORT).show();
         }
         refresh();
+        save();
+    }
+
+    /** Persist preferred settings (not the timer — it's a one-shot command). */
+    private void save() {
+        prefs.edit()
+            .putBoolean("power", st.power)
+            .putInt("temp", st.temp)
+            .putInt("mode", st.mode)
+            .putInt("speed", st.speed)
+            .putBoolean("swing", st.swing)
+            .apply();
+    }
+
+    private void load() {
+        st.power = prefs.getBoolean("power", false);
+        st.temp  = prefs.getInt("temp", 24);
+        st.mode  = prefs.getInt("mode", 1);
+        st.speed = prefs.getInt("speed", 0);
+        st.swing = prefs.getBoolean("swing", false);
+        clearTimer();   // always start disarmed
     }
 
     private void clearTimer() {
